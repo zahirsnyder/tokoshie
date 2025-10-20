@@ -3,28 +3,51 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
+import { getUserRole } from "@/lib/getUserRole";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const init = async () => {
       const { data } = await supabase.auth.getUser();
-      if (!data.user) {
+      const currentUser = data.user;
+
+      if (!currentUser) {
         router.push("/account/login");
-      } else {
-        setUser(data.user);
+        return;
       }
+
+      const emailLower = (currentUser.email ?? "").toLowerCase();
+      const role = await getUserRole(emailLower);
+
+      if (role === "admin") {
+        router.push("/admin");
+        return;
+      }
+
+      // role is customer or null; if null you maybe want to treat as customer or force register
+      setUser(currentUser);
+      setLoading(false);
     };
-    fetchUser();
+
+    init();
   }, [router]);
 
-  const handleLogout = async () => {
+  async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/");
-  };
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-white text-gray-600">
+        Loading your account...
+      </main>
+    );
+  }
 
   if (!user) return null;
 
@@ -37,7 +60,7 @@ export default function ProfilePage() {
         <div className="space-y-3">
           <button
             onClick={() => router.push("/account/orders")}
-            className="w-full py-2 border rounded-md hover:bg-gray-50 transition"
+            className="w-full py-2 border rounded-md bg-green-700 text-white hover:bg-green-800 transition"
           >
             View Orders
           </button>

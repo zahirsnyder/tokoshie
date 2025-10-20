@@ -1,46 +1,46 @@
 "use client";
-
+import { getUserRole } from "@/lib/getUserRole";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
-import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 
 export default function Navbar() {
-    const { cartItems } = useCart();
-    const totalItems = cartItems.length;
+  const { cartItems } = useCart();
+  const totalItems = cartItems.length;
+  const [user, setUser] = useState<any>(null);
+  const [role, setRole] = useState<string | null>(null);
 
-    return (
-        <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
-            <nav className="max-w-6xl mx-auto flex items-center justify-between py-4 px-6">
-                {/* Logo */}
-                <Link href="/" className="text-lg font-bold tracking-wide text-green-800">
-                    TOKOSHIE
-                </Link>
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+        const r = await getUserRole(user.email!);
+        setRole(r);
+      }
+    };
+    fetchUser();
+  }, []);
 
-                {/* Links */}
-                <div className="flex items-center gap-8 text-gray-700">
-                    <Link href="/shop" className="hover:text-green-700 transition">
-                        Shop
-                    </Link>
+  return (
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+      <nav className="max-w-6xl mx-auto flex items-center justify-between py-4 px-6">
+        <Link href="/" className="text-lg font-bold text-green-800">
+          TOKOSHIE
+        </Link>
+        <div className="flex gap-8 text-gray-700">
+          <Link href="/shop">Shop</Link>
+          <Link href="/account/profile">Account</Link>
 
-                    <Link href="/account/profile" className="hover:text-green-700">
-                        Account
-                    </Link>
+          {/* ✅ Only show for admins */}
+          {role === "admin" && <Link href="/admin">Admin</Link>}
 
-                    {/* Cart Button */}
-                    <Link
-                        href="/cart"
-                        className="flex items-center gap-2 bg-green-700 text-white px-4 py-1.5 rounded-full hover:bg-green-800 transition"
-                    >
-                        <ShoppingCart size={16} />
-                        <span className="font-medium">Cart</span>
-                        {totalItems > 0 && (
-                            <span className="ml-1 text-sm bg-white text-green-700 font-semibold px-2 py-0.5 rounded-full">
-                                {totalItems}
-                            </span>
-                        )}
-                    </Link>
-                </div>
-            </nav>
-        </header>
-    );
+          <Link href="/cart" className="flex items-center bg-green-700 text-white px-4 py-1.5 rounded-full">
+            Cart {totalItems > 0 && <span className="ml-2 bg-white text-green-700 px-2 rounded-full">{totalItems}</span>}
+          </Link>
+        </div>
+      </nav>
+    </header>
+  );
 }
