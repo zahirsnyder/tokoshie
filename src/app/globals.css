@@ -1,26 +1,121 @@
 @import "tailwindcss";
 
+/* 🌿 Tokoshie Minimal Theme — Always White Background */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #ffffff;        /* White background */
+  --foreground: #111111;        /* Dark gray text */
+  --accent: #0f5132;            /* Deep Tokoshie green */
+  --accent-hover: #0c3f27;      /* Darker hover green */
+  --muted: #6b7280;             /* Muted gray text */
+  --border: #e5e7eb;            /* Light gray borders */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+/* ❌ Disable dark mode — always bright clean theme */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff;
+    --foreground: #111111;
   }
 }
 
+/* 🧩 Body Styling */
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 🪶 Links */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+a:hover {
+  color: var(--accent-hover);
+}
+
+/* 🧠 Ensure Tailwind color priority for buttons (fix black text issue) */
+a.text-white,
+button.text-white,
+a[class*="bg-"]:not(.text-white),
+button[class*="bg-"]:not(.text-white) {
+  color: #ffffff !important;
+}
+
+/* 🎯 Tokoshie Button Style */
+button,
+a.button {
+  display: inline-block;
+  background-color: var(--accent);
+  color: #ffffff !important;
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  transition: all 0.25s ease;
+}
+button:hover,
+a.button:hover {
+  background-color: var(--accent-hover);
+  transform: scale(1.02);
+}
+button:active,
+a.button:active {
+  transform: scale(0.98);
+}
+
+/* ✨ Headings */
+h1, h2, h3, h4 {
+  font-weight: 600;
+  color: var(--foreground);
+  line-height: 1.2;
+}
+
+/* 🧱 Product Card / Section */
+section, .card {
+  background-color: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.2s ease;
+}
+.card:hover {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+/* 📱 Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* 💫 Utility: Centered page wrapper for nice layout */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* 🧾 Smooth transitions for all */
+* {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }

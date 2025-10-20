@@ -1,23 +1,48 @@
 import { supabase } from "@/lib/supabaseClient";
+import AddToCartButton from "@/components/AddToCartButton"; // ✅ Import your cart button
 
-export default async function ProductPage({ params }: { params: { slug: string } }) {
-  const { data: product } = await supabase
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  // ✅ Unwrap params properly for Next.js 15+
+  const { slug } = await params;
+
+  // ✅ Fetch single product from Supabase
+  const { data: product, error } = await supabase
     .from("products")
     .select("*")
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .single();
 
-  if (!product) return <p>Product not found</p>;
+  if (error || !product) {
+    console.error("Error fetching product:", error?.message);
+    return (
+      <p className="text-center mt-10 text-gray-500">
+        Product not found or failed to load.
+      </p>
+    );
+  }
 
+  // ✅ Render product details + AddToCart button
   return (
     <main className="p-8 max-w-2xl mx-auto">
-      <img src={product.image_url} className="w-full rounded-lg" alt={product.name} />
-      <h1 className="text-2xl font-bold mt-4">{product.name}</h1>
-      <p className="text-green-700 text-xl mt-2">RM {product.price}</p>
-      <p className="text-gray-600 mt-4">{product.description}</p>
-      <button className="mt-6 px-6 py-2 bg-green-700 text-white rounded hover:bg-green-800">
-        Add to Cart
-      </button>
+      <img
+        src={product.image_url}
+        className="w-full h-[420px] object-cover rounded-lg shadow-md"
+        alt={product.name}
+      />
+      <h1 className="text-3xl font-bold mt-6">{product.name}</h1>
+      <p className="text-green-700 text-2xl mt-2 font-semibold">
+        RM {product.price}
+      </p>
+      <p className="text-gray-600 mt-4 leading-relaxed">
+        {product.description || "No description available."}
+      </p>
+
+      {/* 🛒 Client-side Add to Cart button */}
+      <AddToCartButton product={product} />
     </main>
   );
 }
