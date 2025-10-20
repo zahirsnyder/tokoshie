@@ -1,20 +1,35 @@
 "use client";
+
 import { useCart } from "@/context/CartContext";
-import { useState } from "react";
+import { useState, ChangeEvent, FormEvent } from "react";
+
+interface CheckoutForm {
+  name: string;
+  email: string;
+  address: string;
+}
+
+interface OrderResponse {
+  ok?: boolean;
+  orderNumber?: string;
+  orderId?: string;
+  error?: string;
+}
 
 export default function CheckoutPage() {
   const { cartItems, total, clearCart } = useCart();
-  const [form, setForm] = useState({ name: "", address: "", email: "" });
+
+  const [form, setForm] = useState<CheckoutForm>({ name: "", address: "", email: "" });
   const [submitted, setSubmitted] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrMsg(null);
     setLoading(true);
@@ -26,44 +41,50 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           customer: { name: form.name, email: form.email, address: form.address },
           items: cartItems.map((p) => ({ ...p, quantity: 1 })), // quantity=1 for now
-          total
-        })
+          total,
+        }),
       });
 
-      const json = await res.json();
+      const json: OrderResponse = await res.json();
+
       if (!res.ok) {
         setErrMsg(json?.error || "Failed to place order");
         setLoading(false);
         return;
       }
 
-      setOrderNumber(json.orderNumber);
+      setOrderNumber(json.orderNumber ?? null);
       clearCart();
       setSubmitted(true);
-    } catch (err: any) {
-      console.error(err);
+    } catch (err) {
+      console.error("Checkout error:", err);
       setErrMsg("Unexpected error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // 🧾 Success view
   if (submitted) {
     return (
       <main className="max-w-lg mx-auto text-center p-8">
         <h1 className="text-2xl font-bold mb-4">Thank you, {form.name}!</h1>
         <p className="mb-2">Your order has been received.</p>
         {orderNumber && (
-          <p className="text-sm text-gray-400">Order No: <span className="font-mono">{orderNumber}</span></p>
+          <p className="text-sm text-gray-400">
+            Order No: <span className="font-mono">{orderNumber}</span>
+          </p>
         )}
       </main>
     );
   }
 
+  // 🛒 Empty cart
   if (!cartItems.length) {
     return <p className="text-center mt-10 text-gray-500">Your cart is empty.</p>;
   }
 
+  // 🧾 Checkout form
   return (
     <main className="max-w-lg mx-auto p-8">
       <h1 className="text-2xl font-bold mb-6">Checkout</h1>
@@ -79,6 +100,7 @@ export default function CheckoutPage() {
         />
         <input
           name="email"
+          type="email"
           placeholder="Email"
           value={form.email}
           onChange={handleChange}

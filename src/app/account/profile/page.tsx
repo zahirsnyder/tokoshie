@@ -1,23 +1,30 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.push("/account/login");
-      else setUser(data.user);
-    });
-  }, []);
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        router.push("/account/login");
+      } else {
+        setUser(data.user);
+      }
+    };
+    fetchUser();
+  }, [router]);
 
-  async function handleLogout() {
+  const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/");
-  }
+  };
 
   if (!user) return null;
 
