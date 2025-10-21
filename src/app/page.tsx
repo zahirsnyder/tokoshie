@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import Image from "next/image";
 
 export default async function HomePage() {
   // Fetch featured products (limit 3)
@@ -50,11 +51,15 @@ export default async function HomePage() {
               href={`/product/${p.slug}`}
               className="group block rounded-2xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-all"
             >
-              <img
-                src={p.image_url || "/placeholder.jpg"}
-                alt={p.name}
-                className="w-full h-[400px] object-cover transition-transform duration-500 group-hover:scale-105"
-              />
+              <div className="relative w-full h-[400px]">
+                <Image
+                  src={p.image_url || "/placeholder.jpg"}
+                  alt={p.name}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              </div>
               <div className="p-5 bg-white">
                 <h3 className="text-lg font-semibold text-gray-800 group-hover:text-green-700 transition">
                   {p.name}

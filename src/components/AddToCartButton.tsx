@@ -1,8 +1,9 @@
 "use client";
 import { useCart } from "@/context/CartContext";
+import type { Product } from "@/context/CartContext"; // ✅ import the shared type
 import toast from "react-hot-toast";
 
-export default function AddToCartButton({ product }: { product: any }) {
+export default function AddToCartButton({ product }: { product: Product }) {
   const { addToCart } = useCart();
 
   const handleClick = () => {

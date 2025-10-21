@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { Suspense } from "react";
+import Image from "next/image";
 
 export default async function ShopPage() {
     const { data: products, error } = await supabase
@@ -78,10 +79,12 @@ export default async function ShopPage() {
 
                             {/* Product Image */}
                             <div className="relative aspect-[4/5] overflow-hidden">
-                                <img
+                                <Image
                                     src={p.image_url || "/placeholder.jpg"}
                                     alt={p.name}
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                    fill
+                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                    className="object-cover transition-transform duration-500 group-hover:scale-105"
                                 />
                             </div>
 

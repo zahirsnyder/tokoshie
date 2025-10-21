@@ -2,11 +2,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import type { User } from "@supabase/supabase-js";
 
 export default function AdminDashboard() {
     const router = useRouter();
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<User | null>(null);
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data }) => {
@@ -16,7 +16,7 @@ export default function AdminDashboard() {
                 setUser(data.user);
             }
         });
-    }, []);
+    }, [router]);
 
     if (!user) return null;
 

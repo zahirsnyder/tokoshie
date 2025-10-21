@@ -48,7 +48,7 @@ export default function LoginPage() {
       } else {
         router.push("/account/profile");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Unexpected login error:", err);
       setError("Unexpected error occurred. Please try again.");
     } finally {

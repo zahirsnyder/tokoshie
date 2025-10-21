@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import type { User } from "@supabase/supabase-js"; // ✅ Add type import
 
 export default function Navbar() {
   const { cartItems } = useCart();
   const totalItems = cartItems.length;
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null); // ✅ typed
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -16,7 +17,7 @@ export default function Navbar() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
-        const r = await getUserRole(user.email!);
+        const r = await getUserRole(user.email ?? "");
         setRole(r);
       }
     };
@@ -29,15 +30,20 @@ export default function Navbar() {
         <Link href="/" className="text-lg font-bold text-green-800">
           TOKOSHIE
         </Link>
-        <div className="flex gap-8 text-gray-700">
+        <div className="flex gap-8 text-gray-700 items-center">
           <Link href="/shop">Shop</Link>
           <Link href="/account/profile">Account</Link>
-
-          {/* ✅ Only show for admins */}
           {role === "admin" && <Link href="/admin">Admin</Link>}
-
-          <Link href="/cart" className="flex items-center bg-green-700 text-white px-4 py-1.5 rounded-full">
-            Cart {totalItems > 0 && <span className="ml-2 bg-white text-green-700 px-2 rounded-full">{totalItems}</span>}
+          <Link
+            href="/cart"
+            className="flex items-center bg-green-700 text-white px-4 py-1.5 rounded-full"
+          >
+            Cart{" "}
+            {totalItems > 0 && (
+              <span className="ml-2 bg-white text-green-700 px-2 rounded-full">
+                {totalItems}
+              </span>
+            )}
           </Link>
         </div>
       </nav>
