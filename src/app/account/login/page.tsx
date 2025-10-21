@@ -1,52 +1,53 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [step, setStep] = useState(1);
-  const [password, setPassword] = useState("");
   const router = useRouter();
+  const supabase = createClientComponentClient();
 
-  const handleNext = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setStep(2);
-  };
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [showModal, setShowModal] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setErrorMsg("");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      alert(error.message);
+      console.error("Login error:", error.message);
+
+      if (error.message.toLowerCase().includes("email not confirmed")) {
+        setShowModal(true);
+      } else {
+        setErrorMsg(error.message);
+      }
+
+      setLoading(false);
       return;
     }
 
-    const { data: adminData } = await supabase
-      .from("admins")
-      .select("email")
-      .eq("email", email.toLowerCase())
-      .single();
-
-    router.push(adminData ? "/admin" : "/");
+    router.push("/account/profile");
   };
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-white px-4">
-      <form
-        onSubmit={step === 1 ? handleNext : handleLogin}
-        className="w-full max-w-sm text-center"
-      >
-        <h1 className="text-3xl font-bold text-black mb-2">Welcome</h1>
-        <p className="text-black font-medium mb-6">Sign up or log in to continue</p>
+      <form onSubmit={handleLogin} className="w-full max-w-sm text-center">
+        <h1 className="text-3xl font-bold text-black mb-2">Welcome back</h1>
+        <p className="text-black font-medium mb-6">
+          Log in to access your account
+        </p>
 
         {/* Tabs */}
         <div className="flex bg-gray-100 rounded-full p-1 mb-8 shadow-inner">
@@ -65,46 +66,61 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* Step 1: Email */}
-        {step === 1 && (
-          <>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Phone or Email"
-              className="w-full border border-gray-400 rounded-full py-3 px-5 mb-4 focus:outline-none focus:ring-2 focus:ring-green-700"
-              required
-            />
-            <button
-              type="submit"
-              className="w-full bg-[#1c3d25] text-white font-medium rounded-full py-3 hover:bg-[#16351f] transition"
-            >
-              Continue
-            </button>
-          </>
-        )}
+        {/* Email */}
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          className="w-full border border-gray-400 rounded-full py-3 px-5 mb-4"
+          required
+        />
 
-        {/* Step 2: Password */}
-        {step === 2 && (
-          <>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="w-full border border-gray-400 rounded-full py-3 px-5 mb-4 focus:outline-none focus:ring-2 focus:ring-green-700"
-              required
-            />
-            <button
-              type="submit"
-              className="w-full bg-[#1c3d25] text-white font-medium rounded-full py-3 hover:bg-[#16351f] transition"
-            >
-              Continue
-            </button>
-          </>
-        )}
+        {/* Password */}
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          className="w-full border border-gray-400 rounded-full py-3 px-5 mb-4"
+          required
+        />
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-green-700 text-white rounded-full py-3 disabled:opacity-60"
+        >
+          {loading ? "Logging in..." : "Login"}
+        </button>
+
+        {errorMsg && <p className="text-red-600 text-sm mt-4">{errorMsg}</p>}
       </form>
+
+      {/* ❌ Modal for unverified email */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
+          <div className="bg-white w-full max-w-sm p-6 rounded-xl shadow-xl relative text-center">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-3 right-4 text-gray-400 hover:text-black text-xl"
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-semibold text-red-600 mb-2">Email not verified</h2>
+            <p className="text-sm text-gray-700">
+              Please check your inbox for a confirmation link before logging in.
+            </p>
+            <button
+              onClick={() => setShowModal(false)}
+              className="mt-6 bg-green-700 text-white px-6 py-2 rounded-full hover:bg-green-800 transition"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

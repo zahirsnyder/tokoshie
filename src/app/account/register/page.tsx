@@ -13,7 +13,9 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,29 +26,44 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
+    setLoading(true);
 
-    // ✅ Sign up user via Supabase Auth (trigger will handle customers)
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: name }, // sent to raw_user_meta_data
-      },
-    });
+    try {
+      // ✅ Step 1: Register user (Supabase will trigger customers insert automatically)
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: name }, // this is stored in raw_user_meta_data
+        },
+      });
 
-    if (error) {
-      console.error("Signup failed:", error.message);
-      setErrorMsg(error.message);
-      return;
+      if (error) {
+        console.error("Signup failed:", error.message);
+        setErrorMsg(error.message);
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Step 2: Inform the user
+      setSuccessMsg(
+        "Registration successful! Please check your email to verify your account before logging in."
+      );
+
+      // ✅ Optional delay before redirecting to login
+      setTimeout(() => {
+        router.push("/account/login");
+      }, 3000);
+    } catch (err) {
+      if (err instanceof Error) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg("Something went wrong. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    // ✅ The trigger in Supabase automatically inserts into `customers`
-    // using NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name'
-
-    // Wait briefly for trigger to finish (optional but safer)
-    await new Promise((res) => setTimeout(res, 800));
-
-    router.push("/account/profile");
   };
 
   return (
@@ -55,7 +72,7 @@ export default function RegisterPage() {
         onSubmit={step === 1 ? handleNext : handleRegister}
         className="w-full max-w-sm text-center"
       >
-        <h1 className="text-3xl font-bold text-black mb-2">Welcome</h1>
+        <h1 className="text-3xl font-bold text-black mb-2">Create Account</h1>
         <p className="text-black font-medium mb-6">
           Sign up or log in to continue
         </p>
@@ -90,14 +107,15 @@ export default function RegisterPage() {
             />
             <button
               type="submit"
-              className="w-full bg-green-700 text-white rounded-full py-3"
+              disabled={!email}
+              className="w-full bg-green-700 text-white rounded-full py-3 disabled:opacity-60 hover:bg-green-800 transition"
             >
               Continue
             </button>
           </>
         )}
 
-        {/* Step 2: Name & Password */}
+        {/* Step 2: Full name + Password */}
         {step === 2 && (
           <>
             <input
@@ -118,14 +136,21 @@ export default function RegisterPage() {
             />
             <button
               type="submit"
-              className="w-full bg-green-700 text-white rounded-full py-3"
+              disabled={loading}
+              className="w-full bg-green-700 text-white rounded-full py-3 disabled:opacity-60 hover:bg-green-800 transition"
             >
-              Register
+              {loading ? "Registering..." : "Register"}
             </button>
           </>
         )}
 
+        {/* Feedback */}
         {errorMsg && <p className="text-red-600 text-sm mt-4">{errorMsg}</p>}
+        {successMsg && (
+          <p className="text-green-700 text-sm mt-4 font-medium">
+            {successMsg}
+          </p>
+        )}
       </form>
     </main>
   );
