@@ -10,7 +10,6 @@ import type { User } from "@supabase/supabase-js";
 
 export default function CartPage() {
     const { cartItems, removeItem, increaseQty, decreaseQty, total } = useCart();
-    const supabase = createClientComponentClient();
     const router = useRouter();
 
     const [user, setUser] = useState<User | null>(null);
@@ -18,21 +17,23 @@ export default function CartPage() {
     const [authMode, setAuthMode] = useState<"login" | "signup">("login");
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
-    const [redirectAfterAuth, setRedirectAfterAuth] = useState(false); // ✅ NEW
+    const [redirectAfterAuth, setRedirectAfterAuth] = useState(false);
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
 
-    // ✅ Get current user (once)
     useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => {
+        const getUser = async () => {
+            const supabaseClient = createClientComponentClient();
+            const { data } = await supabaseClient.auth.getUser();
             setUser(data.user ?? null);
-        });
+        };
+
+        getUser();
     }, []);
 
-    // ✅ Redirect ONLY after login/signup (not when returning to cart)
     useEffect(() => {
         if (user && redirectAfterAuth) {
             setShowAuthModal(false);
@@ -52,6 +53,7 @@ export default function CartPage() {
         setLoading(true);
         setErrorMsg(null);
         setRedirectAfterAuth(true);
+        const supabase = createClientComponentClient();
 
         try {
             if (authMode === "login") {
@@ -73,7 +75,6 @@ export default function CartPage() {
                 });
                 if (error) throw error;
 
-                // Insert into 'customers' table
                 const user = data.user;
                 if (user) {
                     const { error: insertError } = await supabase.from("customers").insert([
@@ -87,18 +88,20 @@ export default function CartPage() {
                 }
             }
 
-            // ✅ Refresh user after login/signup
             const { data: userData, error: userErr } = await supabase.auth.getUser();
             if (userErr) throw userErr;
             setUser(userData.user ?? null);
 
-        } catch (err: any) {
-            setErrorMsg(err.message || "Something went wrong. Please try again.");
+        } catch (err) {
+            if (err instanceof Error) {
+                setErrorMsg(err.message);
+            } else {
+                setErrorMsg("Something went wrong. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
     };
-
 
     if (!cartItems.length) {
         return (
@@ -117,7 +120,6 @@ export default function CartPage() {
 
     return (
         <main className="max-w-5xl mx-auto px-6 py-10 space-y-10 relative">
-            {/* 🧾 Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Your Cart</h1>
                 <Link
@@ -128,7 +130,6 @@ export default function CartPage() {
                 </Link>
             </div>
 
-            {/* 🛍️ Cart Items */}
             <ul className="space-y-8">
                 {cartItems.map((item, index) => (
                     <li
@@ -154,7 +155,6 @@ export default function CartPage() {
                             </div>
                         </div>
 
-                        {/* Quantity Control */}
                         <div className="flex items-center justify-between w-full md:w-1/3 gap-3">
                             <div className="flex items-center border rounded-full overflow-hidden bg-gray-50">
                                 <button
@@ -180,7 +180,6 @@ export default function CartPage() {
                             </button>
                         </div>
 
-                        {/* Item Total */}
                         <div className="w-full md:w-1/6 text-right">
                             <p className="font-semibold text-gray-900">
                                 RM {(item.price * item.quantity).toFixed(2)}
@@ -190,7 +189,6 @@ export default function CartPage() {
                 ))}
             </ul>
 
-            {/* 💰 Footer */}
             <div className="flex flex-col md:flex-row justify-between gap-6 mt-6">
                 <div className="w-full md:w-1/3 bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-700 text-sm">
                     <p className="font-semibold text-gray-800 mb-1">Vouchers</p>
@@ -202,8 +200,7 @@ export default function CartPage() {
                         Shipping & discounts calculated at checkout
                     </p>
                     <p className="text-xl font-bold mb-4">
-                        Subtotal:{" "}
-                        <span className="text-green-700">RM {total.toFixed(2)}</span>
+                        Subtotal: <span className="text-green-700">RM {total.toFixed(2)}</span>
                     </p>
                     <button
                         onClick={handleCheckout}
@@ -214,7 +211,6 @@ export default function CartPage() {
                 </div>
             </div>
 
-            {/* 🔒 AUTH MODAL */}
             {showAuthModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
                     <div className="bg-white max-w-md w-full rounded-xl shadow-xl p-6 relative">
