@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function AddProductPage() {
     name: "",
     price: "",
     description: "",
+    stock: "",
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -20,7 +22,7 @@ export default function AddProductPage() {
 
     let image_url = null;
 
-    // ✅ Upload image if available
+    // ✅ Upload image if selected
     if (imageFile) {
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
@@ -42,12 +44,13 @@ export default function AddProductPage() {
       image_url = data.publicUrl;
     }
 
-    // ✅ Save product to DB
+    // ✅ Insert into DB
     const { error } = await supabase.from("products").insert([
       {
         name: form.name,
         price: parseFloat(form.price),
         description: form.description,
+        stock: form.stock ? parseInt(form.stock) : 0,
         image_url,
       },
     ]);
@@ -59,9 +62,20 @@ export default function AddProductPage() {
 
   return (
     <main className="max-w-xl mx-auto p-6">
+      {/* 🔙 Back Button */}
+      <div className="mb-4">
+        <Link
+          href="/admin/products"
+          className="text-sm text-gray-600 hover:text-gray-800 transition"
+        >
+          ← Back to Products
+        </Link>
+      </div>
+
       <h1 className="text-2xl font-semibold mb-6">Add Product</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Product Name */}
         <input
           type="text"
           placeholder="Name"
@@ -70,6 +84,8 @@ export default function AddProductPage() {
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
         />
+
+        {/* Price */}
         <input
           type="number"
           step="0.01"
@@ -79,6 +95,17 @@ export default function AddProductPage() {
           onChange={(e) => setForm({ ...form, price: e.target.value })}
           required
         />
+
+        {/* Stock */}
+        <input
+          type="number"
+          placeholder="Stock (optional)"
+          className="border rounded w-full p-2"
+          value={form.stock}
+          onChange={(e) => setForm({ ...form, stock: e.target.value })}
+        />
+
+        {/* Description */}
         <textarea
           placeholder="Description (optional)"
           className="border rounded w-full p-2"
@@ -86,6 +113,7 @@ export default function AddProductPage() {
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
 
+        {/* Image */}
         <div>
           <label className="text-sm font-medium">Product Image</label>
           <input
@@ -96,6 +124,7 @@ export default function AddProductPage() {
           />
         </div>
 
+        {/* Submit */}
         <button
           type="submit"
           disabled={saving}

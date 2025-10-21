@@ -3,17 +3,11 @@
 /* 🌿 Tokoshie Minimal Theme — Always White Background */
 :root {
   --background: #ffffff;
-  /* White background */
   --foreground: #111111;
-  /* Dark gray text */
   --accent: #0f5132;
-  /* Deep Tokoshie green */
   --accent-hover: #0c3f27;
-  /* Darker hover green */
   --muted: #6b7280;
-  /* Muted gray text */
   --border: #e5e7eb;
-  /* Light gray borders */
 }
 
 @theme inline {
@@ -44,46 +38,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 🪶 Links */
-a {
-  color: var(--accent);
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
 a:hover {
   color: var(--accent-hover);
-}
-
-/* 🧠 Ensure Tailwind color priority for buttons (fix black text issue) */
-a.text-white,
-button.text-white,
-a[class*="bg-"]:not(.text-white),
-button[class*="bg-"]:not(.text-white) {
-  color: #ffffff !important;
-}
-
-/* 🎯 Tokoshie Button Style */
-button,
-a.button {
-  display: inline-block;
-  background-color: var(--accent);
-  color: #ffffff !important;
-  font-weight: 500;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  transition: all 0.25s ease;
-}
-
-button:hover,
-a.button:hover {
-  background-color: var(--accent-hover);
-  transform: scale(1.02);
-}
-
-button:active,
-a.button:active {
-  transform: scale(0.98);
 }
 
 /* ✨ Headings */
@@ -138,4 +94,23 @@ section,
 
 html {
   scroll-behavior: smooth;
+}
+
+/* ✅ Force white text for circular avatars */
+.avatar {
+  background-color: #3c5830 !important;
+  /* Tokoshie green */
+  color: #ffffff !important;
+  /* Force white text */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border-radius: 9999px;
+  width: 2.25rem;
+  /* w-9 */
+  height: 2.25rem;
+  /* h-9 */
+  font-size: 0.875rem;
+  /* optional: make the letter nicely sized */
 }

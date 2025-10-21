@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
+import { supabase } from "@/lib/supabaseClient";
+import Modal from "@/components/Modal";
 
 interface Product {
     id: string;
@@ -12,124 +13,143 @@ interface Product {
     description: string | null;
     image_url?: string | null;
     created_at: string;
+    stock?: number;
 }
 
 export default function ProductList() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
-
-    // 🔹 Fetch all products
-    async function fetchProducts() {
-        const { data, error } = await supabase
-            .from("products")
-            .select("id, name, price, description, image_url, created_at")
-            .order("created_at", { ascending: false });
-
-        if (error) {
-            console.error("Error loading products:", error.message);
-        } else if (data) {
-            setProducts(data);
-        }
-        setLoading(false);
-    }
-
-    // 🔹 Delete a product
-    async function handleDelete(id: string) {
-        if (!confirm("Are you sure you want to delete this product?")) return;
-
-        const { error } = await supabase.from("products").delete().eq("id", id);
-        if (error) {
-            alert("Failed to delete product: " + error.message);
-        } else {
-            fetchProducts();
-        }
-    }
+    const [deleteId, setDeleteId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchProducts();
     }, []);
 
-    if (loading)
-        return (
-            <div className="p-6 text-gray-500 text-center animate-pulse">
-                Loading products...
-            </div>
-        );
+    async function fetchProducts() {
+        const { data, error } = await supabase
+            .from("products")
+            .select("id, name, price, description, image_url, created_at, stock")
+            .order("created_at", { ascending: false });
+
+        if (error) console.error("Load error:", error.message);
+        if (data) setProducts(data);
+        setLoading(false);
+    }
+
+    const deleteProduct = async () => {
+        if (!deleteId) return;
+        const { error } = await supabase.from("products").delete().eq("id", deleteId);
+        if (error) alert("Delete failed");
+        setDeleteId(null);
+        fetchProducts();
+    };
 
     return (
-        <main className="max-w-6xl mx-auto p-6">
+        <main className="max-w-6xl mx-auto px-4 py-8">
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-semibold flex items-center gap-2">
-                    🛍️ Products
-                </h1>
+            <div className="flex justify-between items-center mb-10">
+                <h1 className="text-2xl font-semibold text-gray-800">🛍️ Products</h1>
                 <Link
                     href="/admin/products/new"
-                    className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 transition"
+                    className="bg-[#2f4c28] text-white font-medium px-4 py-2 rounded-md hover:bg-[#24401f] transition"
                 >
                     + Add Product
                 </Link>
             </div>
 
-            {/* Product List */}
-            {products.length === 0 ? (
-                <p className="text-gray-500 text-center">No products found.</p>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {products.map((p) => (
-                        <div
-                            key={p.id}
-                            className="border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition"
-                        >
-                            {/* Image */}
-                            <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
-                                {p.image_url ? (
-                                    <div className="relative w-full h-full">
-                                        <Image
-                                            src={p.image_url || "/placeholder.jpg"}
-                                            alt={p.name}
-                                            fill
-                                            sizes="(max-width: 768px) 100vw, 33vw"
-                                            className="object-cover"
-                                        />
-                                    </div>
-                                ) : (
-                                    <span className="text-gray-400 text-sm">No Image</span>
-                                )}
+            {/* Loading */}
+            {loading && (
+                <p className="text-gray-400 text-center py-8 animate-pulse">
+                    Loading products…
+                </p>
+            )}
+
+            {/* No Products */}
+            {!loading && products.length === 0 && (
+                <p className="text-gray-400 text-center py-8">No products found.</p>
+            )}
+
+            {/* Product Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {products.map((product) => (
+                    <div
+                        key={product.id}
+                        className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition"
+                    >
+                        {/* Image */}
+                        <div className="relative w-full h-48 bg-gray-100">
+                            {product.image_url ? (
+                                <Image
+                                    src={product.image_url}
+                                    alt={product.name}
+                                    fill
+                                    className="object-cover"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                                    No Image
+                                </div>
+                            )}
+                            {product.stock !== undefined && product.stock <= 0 && (
+                                <span className="absolute top-2 right-2 bg-red-600 text-white text-xs font-medium px-2 py-1 rounded">
+                                    Out of Stock
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-4 flex flex-col h-[200px] justify-between">
+                            <div className="space-y-1">
+                                <h2 className="text-lg font-semibold text-gray-900">
+                                    {product.name}
+                                </h2>
+                                <p className="text-sm text-gray-500 line-clamp-2">
+                                    {product.description}
+                                </p>
+                                <div className="text-sm text-gray-700 font-medium">
+                                    RM {product.price.toFixed(2)}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    Stock:{" "}
+                                    <span
+                                        className={`font-semibold ${product.stock !== undefined && product.stock <= 0
+                                                ? "text-red-600"
+                                                : "text-gray-800"
+                                            }`}
+                                    >
+                                        {product.stock ?? "N/A"}
+                                    </span>
+                                </div>
                             </div>
 
-                            {/* Details */}
-                            <div className="p-4 flex flex-col justify-between h-[180px]">
-                                <div>
-                                    <h2 className="text-lg font-semibold">{p.name}</h2>
-                                    <p className="text-green-700 font-medium">
-                                        RM {p.price.toFixed(2)}
-                                    </p>
-                                    {p.description && (
-                                        <p className="text-gray-500 text-sm mt-1 line-clamp-2">
-                                            {p.description}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div className="flex justify-between items-center mt-4">
-                                    <Link
-                                        href={`/admin/products/edit/${p.id}`}
-                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                                    >
-                                        Edit
-                                    </Link>
-                                    <button
-                                        onClick={() => handleDelete(p.id)}
-                                        className="text-red-600 hover:text-red-800 text-sm font-medium"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
+                            {/* Action Buttons */}
+                            <div className="flex justify-end gap-2 mt-4">
+                                <Link
+                                    href={`/admin/products/edit/${product.id}`}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition"
+                                >
+                                    ✏️ Edit
+                                </Link>
+                                <button
+                                    onClick={() => setDeleteId(product.id)}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 rounded hover:bg-red-100 transition"
+                                >
+                                    🗑️ Delete
+                                </button>
                             </div>
                         </div>
-                    ))}
-                </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Delete Modal */}
+            {deleteId && (
+                <Modal
+                    title="Delete Product"
+                    description="Are you sure you want to delete this product?"
+                    onCancel={() => setDeleteId(null)}
+                    onConfirm={deleteProduct}
+                />
             )}
         </main>
     );

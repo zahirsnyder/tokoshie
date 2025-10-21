@@ -1,59 +1,140 @@
 "use client";
+
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
+  const [step, setStep] = useState(1);
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const router = useRouter();
 
-  async function handleRegister(e: React.FormEvent) {
+  const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) return setError(error.message);
+    if (!email) return;
+    setStep(2);
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // 🟢 1. Create Supabase Auth User
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } },
+    });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    const user = data.user;
+    if (!user) {
+      alert("Sign-up failed. Please try again.");
+      return;
+    }
+
+    // 🟢 2. Insert into `customers` table
+    const { error: insertError } = await supabase.from("customers").insert([
+      {
+        full_name: name,
+        email: email,
+        phone: null,
+        address: null,
+        city: null,
+        postcode: null,
+      },
+    ]);
+
+    if (insertError) {
+      console.error("Customer insert failed:", insertError.message);
+    }
+
+    // 🟢 3. Redirect to homepage or profile
     router.push("/account/profile");
-  }
+  };
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-white">
-      <div className="w-full max-w-md p-8 border border-gray-200 rounded-xl shadow-sm">
-        <h1 className="text-2xl font-semibold text-center mb-6">Create Account</h1>
-        {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+      <form
+        onSubmit={step === 1 ? handleNext : handleRegister}
+        className="w-full max-w-md text-center px-6"
+      >
+        {step === 1 ? (
+          <>
+            <h1 className="text-3xl font-bold mb-2 text-gray-900">Welcome</h1>
+            <p className="text-gray-600 mb-8">
+              Sign up or log in to continue
+            </p>
 
-        <form onSubmit={handleRegister} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-green-700 focus:ring-1"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-green-700 focus:ring-1"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button
-            type="submit"
-            className="w-full bg-green-700 text-white py-2 rounded-md hover:bg-green-800 transition"
-          >
-            Register
-          </button>
-        </form>
+            <div className="flex justify-center gap-4 mb-8">
+              <button
+                type="button"
+                className="px-6 py-2 rounded-full font-medium bg-green-700 text-white shadow"
+                disabled
+              >
+                Sign up
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/account/login")}
+                className="px-6 py-2 rounded-full font-medium bg-gray-100 text-gray-700"
+              >
+                Login
+              </button>
+            </div>
 
-        <p className="text-sm text-gray-600 mt-4 text-center">
-          Already have an account?{" "}
-          <Link href="/account/login" className="text-green-700 hover:underline">
-            Login here
-          </Link>
-        </p>
-      </div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Phone or Email"
+              className="w-full border border-gray-300 rounded-full py-3 px-5 mb-4 focus:outline-none focus:ring-2 focus:ring-green-700"
+            />
+            <button
+              type="submit"
+              className="w-full bg-green-700 text-white font-medium rounded-full py-3 hover:bg-green-800 transition"
+            >
+              Continue
+            </button>
+          </>
+        ) : (
+          <>
+            <h1 className="text-3xl font-bold mb-2 text-gray-900">
+              Almost done
+            </h1>
+            <p className="text-gray-600 mb-8">
+              Fill in detail for your account
+            </p>
+
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Name"
+              className="w-full border border-gray-300 rounded-full py-3 px-5 mb-4 focus:outline-none focus:ring-2 focus:ring-green-700"
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              className="w-full border border-gray-300 rounded-full py-3 px-5 mb-4 focus:outline-none focus:ring-2 focus:ring-green-700"
+            />
+
+            <button
+              type="submit"
+              className="w-full bg-green-700 text-white font-medium rounded-full py-3 hover:bg-green-800 transition"
+            >
+              Continue
+            </button>
+          </>
+        )}
+      </form>
     </main>
   );
 }
