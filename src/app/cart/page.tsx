@@ -1,75 +1,162 @@
 "use client";
+
 import { useCart } from "@/context/CartContext";
 import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { User } from "@supabase/supabase-js";
 
 export default function CartPage() {
     const { cartItems, removeItem, increaseQty, decreaseQty, total } = useCart();
+    const supabase = createClientComponentClient();
+    const router = useRouter();
 
-    if (!cartItems.length)
+    const [user, setUser] = useState<User | null>(null);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+    const [loading, setLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [redirectAfterAuth, setRedirectAfterAuth] = useState(false); // ✅ NEW
+
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+
+    // ✅ Get current user (once)
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            setUser(data.user ?? null);
+        });
+    }, []);
+
+    // ✅ Redirect ONLY after login/signup (not when returning to cart)
+    useEffect(() => {
+        if (user && redirectAfterAuth) {
+            setShowAuthModal(false);
+            router.push("/checkout");
+        }
+    }, [user, redirectAfterAuth, router]);
+
+    const handleCheckout = () => {
+        if (!user) {
+            setShowAuthModal(true);
+        } else {
+            router.push("/checkout");
+        }
+    };
+
+    const handleAuth = async () => {
+        setLoading(true);
+        setErrorMsg(null);
+        setRedirectAfterAuth(true);
+
+        try {
+            if (authMode === "login") {
+                const { error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password,
+                });
+                if (error) throw error;
+            } else {
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            first_name: firstName,
+                            last_name: lastName,
+                        },
+                    },
+                });
+                if (error) throw error;
+
+                // Insert into 'customers' table
+                const user = data.user;
+                if (user) {
+                    const { error: insertError } = await supabase.from("customers").insert([
+                        {
+                            id: user.id,
+                            email,
+                            name: `${firstName} ${lastName}`,
+                        },
+                    ]);
+                    if (insertError) throw insertError;
+                }
+            }
+
+            // ✅ Refresh user after login/signup
+            const { data: userData, error: userErr } = await supabase.auth.getUser();
+            if (userErr) throw userErr;
+            setUser(userData.user ?? null);
+
+        } catch (err: any) {
+            setErrorMsg(err.message || "Something went wrong. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+    if (!cartItems.length) {
         return (
-            <main className="max-w-5xl mx-auto p-8 text-center">
-                <h1 className="text-3xl font-bold mb-4 text-gray-800">Your Cart</h1>
+            <main className="max-w-5xl mx-auto px-6 py-10 text-center">
+                <h1 className="text-3xl font-bold text-gray-800 mb-3">Your Cart</h1>
                 <p className="text-gray-500">Your cart is empty.</p>
-                <a
+                <Link
                     href="/shop"
                     className="inline-block mt-4 text-green-700 hover:underline font-medium"
                 >
                     Continue shopping →
-                </a>
+                </Link>
             </main>
         );
+    }
 
     return (
-        <main className="max-w-5xl mx-auto px-6 py-10">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-10">
-                <h1 className="text-3xl font-bold text-gray-900">Your Cart</h1>
-                <a
+        <main className="max-w-5xl mx-auto px-6 py-10 space-y-10 relative">
+            {/* 🧾 Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Your Cart</h1>
+                <Link
                     href="/shop"
                     className="text-green-700 hover:underline text-sm font-medium"
                 >
-                    Continue shopping
-                </a>
+                    ← Continue shopping
+                </Link>
             </div>
 
-            {/* Table Header */}
-            <div className="grid grid-cols-3 border-b pb-3 mb-4 text-gray-500 text-xs tracking-wide uppercase">
-                <span>Product</span>
-                <span className="text-center">Quantity</span>
-                <span className="text-right">Total</span>
-            </div>
-
-            {/* Cart Items */}
+            {/* 🛍️ Cart Items */}
             <ul className="space-y-8">
                 {cartItems.map((item, index) => (
                     <li
                         key={`${item.id}-${index}`}
-                        className="grid grid-cols-3 items-center pb-8 border-b border-gray-200"
+                        className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b pb-6"
                     >
-                        {/* Product Info */}
-                        <div className="flex items-center gap-5">
-                            <div className="relative w-28 h-28">
+                        <div className="flex items-start gap-4 w-full md:w-1/2">
+                            <div className="relative w-24 h-24 shrink-0">
                                 <Image
                                     src={item.image_url || "/placeholder.jpg"}
                                     alt={item.name}
                                     fill
-                                    sizes="112px"
-                                    className="object-cover rounded-lg shadow-sm"
+                                    sizes="96px"
+                                    className="object-cover rounded-lg border"
                                 />
                             </div>
                             <div>
-                                <h2 className="font-medium text-lg text-gray-900">
-                                    {item.name}
-                                </h2>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    {item.category || "Matcha"}
+                                <h2 className="text-lg font-medium text-gray-900">{item.name}</h2>
+                                <p className="text-sm text-gray-500">{item.category || "Matcha"}</p>
+                                <p className="text-sm font-semibold text-gray-700 mt-1">
+                                    RM {item.price.toFixed(2)} each
                                 </p>
                             </div>
                         </div>
 
-                        {/* Quantity Controls */}
-                        <div className="flex justify-center items-center">
-                            <div className="flex items-center bg-gray-50 border border-gray-300 rounded-full overflow-hidden">
+                        {/* Quantity Control */}
+                        <div className="flex items-center justify-between w-full md:w-1/3 gap-3">
+                            <div className="flex items-center border rounded-full overflow-hidden bg-gray-50">
                                 <button
                                     onClick={() => decreaseQty(item.id)}
                                     className="px-3 py-1 text-lg font-medium text-gray-600 hover:bg-gray-100"
@@ -86,7 +173,7 @@ export default function CartPage() {
                             </div>
                             <button
                                 onClick={() => removeItem(item.id)}
-                                className="ml-4 text-gray-400 hover:text-red-500 transition"
+                                className="text-gray-400 hover:text-red-500 transition"
                                 title="Remove"
                             >
                                 🗑
@@ -94,7 +181,7 @@ export default function CartPage() {
                         </div>
 
                         {/* Item Total */}
-                        <div className="text-right">
+                        <div className="w-full md:w-1/6 text-right">
                             <p className="font-semibold text-gray-900">
                                 RM {(item.price * item.quantity).toFixed(2)}
                             </p>
@@ -103,31 +190,129 @@ export default function CartPage() {
                 ))}
             </ul>
 
-            {/* Footer */}
-            <div className="mt-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div className="w-full md:w-1/3 bg-gray-50 border border-gray-300 rounded-xl p-5 text-gray-700 text-sm">
+            {/* 💰 Footer */}
+            <div className="flex flex-col md:flex-row justify-between gap-6 mt-6">
+                <div className="w-full md:w-1/3 bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-700 text-sm">
                     <p className="font-semibold text-gray-800 mb-1">Vouchers</p>
-                    <p>Don’t forget to apply before checkout</p>
+                    <p>Apply your vouchers at checkout if available.</p>
                 </div>
 
                 <div className="w-full md:w-1/3 text-right">
                     <p className="text-sm text-gray-500 mb-1">
-                        Shipping, taxes, and discounts will be calculated at checkout.
+                        Shipping & discounts calculated at checkout
                     </p>
-                    <p className="text-lg font-bold mb-4">
+                    <p className="text-xl font-bold mb-4">
                         Subtotal:{" "}
-                        <span className="text-green-700">
-                            RM {total.toFixed(2)}
-                        </span>
+                        <span className="text-green-700">RM {total.toFixed(2)}</span>
                     </p>
-                    <a
-                        href="/checkout"
-                        className="block w-full md:w-auto bg-green-700 text-white font-medium text-center px-8 py-3 rounded-lg hover:bg-green-800 transition"
+                    <button
+                        onClick={handleCheckout}
+                        className="inline-block w-full md:w-auto bg-green-700 text-white text-center px-6 py-3 rounded-lg font-medium hover:bg-green-800 transition"
                     >
-                        Checkout
-                    </a>
+                        Proceed to Checkout
+                    </button>
                 </div>
             </div>
+
+            {/* 🔒 AUTH MODAL */}
+            {showAuthModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
+                    <div className="bg-white max-w-md w-full rounded-xl shadow-xl p-6 relative">
+                        <button
+                            onClick={() => setShowAuthModal(false)}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-black"
+                        >
+                            ✕
+                        </button>
+
+                        <h2 className="text-xl font-semibold text-center mb-2">
+                            {authMode === "login" ? "Log in" : "Create an account"}
+                        </h2>
+                        <p className="text-center text-sm text-gray-500 mb-6">
+                            {authMode === "login"
+                                ? "Welcome back. Enter your password to continue."
+                                : "Looks like you're new here, we need a little more info:"}
+                        </p>
+
+                        <div className="space-y-4">
+                            <input
+                                type="email"
+                                placeholder="Email address"
+                                className="w-full border-b py-2 focus:outline-none"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+
+                            {authMode === "signup" && (
+                                <div className="flex gap-4">
+                                    <input
+                                        placeholder="First name"
+                                        className="w-1/2 border-b py-2 focus:outline-none"
+                                        value={firstName}
+                                        onChange={(e) => setFirstName(e.target.value)}
+                                    />
+                                    <input
+                                        placeholder="Last name"
+                                        className="w-1/2 border-b py-2 focus:outline-none"
+                                        value={lastName}
+                                        onChange={(e) => setLastName(e.target.value)}
+                                    />
+                                </div>
+                            )}
+
+                            <input
+                                type="password"
+                                placeholder="Password"
+                                className="w-full border-b py-2 focus:outline-none"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+
+                            {authMode === "signup" && (
+                                <ul className="text-xs text-gray-500 space-y-1 pl-4 list-disc">
+                                    <li>Include both upper and lower case characters</li>
+                                    <li>Include at least one number or symbol</li>
+                                    <li>Be at least 8 characters long</li>
+                                </ul>
+                            )}
+
+                            {errorMsg && <p className="text-red-500 text-sm">{errorMsg}</p>}
+
+                            <button
+                                onClick={handleAuth}
+                                disabled={loading}
+                                className="w-full bg-black text-white py-2 mt-2 hover:bg-gray-900 transition"
+                            >
+                                {loading ? "Please wait..." : "Continue"}
+                            </button>
+                        </div>
+
+                        <div className="text-center mt-4 text-sm text-gray-600">
+                            {authMode === "login" ? (
+                                <>
+                                    New to TOKOSHIE?{" "}
+                                    <button
+                                        onClick={() => setAuthMode("signup")}
+                                        className="underline"
+                                    >
+                                        Create an account
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    Already have an account?{" "}
+                                    <button
+                                        onClick={() => setAuthMode("login")}
+                                        className="underline"
+                                    >
+                                        Log in
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

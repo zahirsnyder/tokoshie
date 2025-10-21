@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -29,87 +30,75 @@ export default function LoginPage() {
       return;
     }
 
-    // ✅ Check if user exists in "admins" table
-    const { data: adminData, error: adminError } = await supabase
+    const { data: adminData } = await supabase
       .from("admins")
       .select("email")
       .eq("email", email.toLowerCase())
       .single();
 
-    if (adminError && adminError.code !== "PGRST116") {
-      // (code 116 = no rows found)
-      console.error(adminError.message);
-    }
-
-    // ✅ Redirect based on role
-    if (adminData) {
-      router.push("/admin");
-    } else {
-      router.push("/");
-    }
+    router.push(adminData ? "/admin" : "/");
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-white">
+    <main className="min-h-screen flex items-center justify-center bg-white px-4">
       <form
         onSubmit={step === 1 ? handleNext : handleLogin}
-        className="w-full max-w-md text-center px-6"
+        className="w-full max-w-sm text-center"
       >
-        {step === 1 ? (
+        <h1 className="text-3xl font-bold text-black mb-2">Welcome</h1>
+        <p className="text-black font-medium mb-6">Sign up or log in to continue</p>
+
+        {/* Tabs */}
+        <div className="flex bg-gray-100 rounded-full p-1 mb-8 shadow-inner">
+          <Link
+            href="/account/register"
+            className="w-1/2 py-2 rounded-full text-gray-600 hover:text-black text-sm font-medium text-center"
+          >
+            Sign up
+          </Link>
+          <button
+            type="button"
+            disabled
+            className="w-1/2 py-2 rounded-full bg-white text-black font-medium shadow"
+          >
+            Login
+          </button>
+        </div>
+
+        {/* Step 1: Email */}
+        {step === 1 && (
           <>
-            <h1 className="text-3xl font-bold mb-2 text-gray-900">Welcome</h1>
-            <p className="text-gray-600 mb-8">Sign up or log in to continue</p>
-
-            <div className="flex justify-center gap-4 mb-8">
-              <button
-                type="button"
-                className="px-6 py-2 rounded-full font-medium bg-green-700 text-white shadow"
-                disabled
-              >
-                Sign up
-              </button>
-              <button
-                type="button"
-                className="px-6 py-2 rounded-full font-medium bg-gray-100 text-gray-700"
-              >
-                Login
-              </button>
-            </div>
-
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Phone or Email"
-              className="w-full border border-gray-300 rounded-full py-3 px-5 mb-4 focus:outline-none focus:ring-2 focus:ring-green-700"
+              className="w-full border border-gray-400 rounded-full py-3 px-5 mb-4 focus:outline-none focus:ring-2 focus:ring-green-700"
+              required
             />
             <button
               type="submit"
-              className="w-full bg-green-700 text-white font-medium rounded-full py-3 hover:bg-green-800 transition"
+              className="w-full bg-[#1c3d25] text-white font-medium rounded-full py-3 hover:bg-[#16351f] transition"
             >
               Continue
             </button>
           </>
-        ) : (
-          <>
-            <h1 className="text-3xl font-bold mb-2 text-gray-900">
-              Almost done
-            </h1>
-            <p className="text-gray-600 mb-8">
-              Enter your password to continue
-            </p>
+        )}
 
+        {/* Step 2: Password */}
+        {step === 2 && (
+          <>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              className="w-full border border-gray-300 rounded-full py-3 px-5 mb-4 focus:outline-none focus:ring-2 focus:ring-green-700"
+              className="w-full border border-gray-400 rounded-full py-3 px-5 mb-4 focus:outline-none focus:ring-2 focus:ring-green-700"
               required
             />
             <button
               type="submit"
-              className="w-full bg-green-700 text-white font-medium rounded-full py-3 hover:bg-green-800 transition"
+              className="w-full bg-[#1c3d25] text-white font-medium rounded-full py-3 hover:bg-[#16351f] transition"
             >
               Continue
             </button>
