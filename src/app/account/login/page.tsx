@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Link from "next/link";
+import { getUserRole } from "@/lib/getUserRole";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,27 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [showModal, setShowModal] = useState(false);
+
+  // 🔁 Auto-redirect if already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const user = session?.user;
+      if (user?.email) {
+        const role = await getUserRole(user.email);
+        if (role === "admin") {
+          router.push("/admin");
+        } else if (role === "customer") {
+          router.push("/account/profile");
+        }
+      }
+    };
+
+    checkSession();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,18 +49,40 @@ export default function LoginPage() {
 
     if (error) {
       console.error("Login error:", error.message);
-
       if (error.message.toLowerCase().includes("email not confirmed")) {
         setShowModal(true);
       } else {
         setErrorMsg(error.message);
       }
-
       setLoading(false);
       return;
     }
 
-    router.push("/account/profile");
+    // Short delay to allow session to populate
+    await new Promise((res) => setTimeout(res, 300));
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const user = session?.user;
+    if (!user?.email) {
+      setErrorMsg("Unable to retrieve user session.");
+      setLoading(false);
+      return;
+    }
+
+    const role = await getUserRole(user.email);
+
+    if (role === "admin") {
+      router.push("/admin");
+    } else if (role === "customer") {
+      router.push("/account/profile");
+    } else {
+      setErrorMsg("Access denied: your email is not registered.");
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -49,7 +93,6 @@ export default function LoginPage() {
           Log in to access your account
         </p>
 
-        {/* Tabs */}
         <div className="flex bg-gray-100 rounded-full p-1 mb-8 shadow-inner">
           <Link
             href="/account/register"
@@ -66,7 +109,6 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* Email */}
         <input
           type="email"
           value={email}
@@ -76,7 +118,6 @@ export default function LoginPage() {
           required
         />
 
-        {/* Password */}
         <input
           type="password"
           value={password}
@@ -86,7 +127,6 @@ export default function LoginPage() {
           required
         />
 
-        {/* Submit */}
         <button
           type="submit"
           disabled={loading}
@@ -98,7 +138,6 @@ export default function LoginPage() {
         {errorMsg && <p className="text-red-600 text-sm mt-4">{errorMsg}</p>}
       </form>
 
-      {/* ❌ Modal for unverified email */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
           <div className="bg-white w-full max-w-sm p-6 rounded-xl shadow-xl relative text-center">

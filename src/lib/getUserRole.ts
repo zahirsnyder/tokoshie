@@ -1,33 +1,41 @@
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "./supabaseClient";
 
-export async function getUserRole(email?: string): Promise<"admin" | "customer" | null> {
-  if (!email) return null;
+export async function getUserRole(
+  email?: string
+): Promise<"admin" | "customer" | null> {
+  const norm = (email ?? "").trim().toLowerCase();
+  if (!norm) return null;
 
-  console.log("🔍 Checking role for:", email);
+  console.log("[getUserRole] start → email:", norm);
 
-  // 1️⃣ Check Admin Table
-  const { data: adminData, error: adminError } = await supabase
+  const { data: adminData, error: adminErr } = await supabase
     .from("admins")
     .select("role")
-    .eq("email", email)
+    .ilike("email", norm)
     .maybeSingle();
 
-  console.log("👑 Admin table result:", adminData);
+  console.log("[getUserRole] admins result:", adminData);
+  if (adminErr) console.warn("[getUserRole] admins error:", adminErr.message);
 
-  if (adminError) console.error("Admin check error:", adminError.message);
-  if (adminData?.role?.toLowerCase() === "admin") return "admin";
+  if (adminData?.role?.toLowerCase() === "admin") {
+    console.log("[getUserRole] role resolved: admin");
+    return "admin";
+  }
 
-  // 2️⃣ Check Customer Table — no role required
-  const { data: customerData, error: customerError } = await supabase
+  const { data: custData, error: custErr } = await supabase
     .from("customers")
     .select("email")
-    .eq("email", email)
+    .ilike("email", norm)
     .maybeSingle();
 
-  console.log("👤 Customer table result:", customerData);
+  console.log("[getUserRole] customers result:", custData);
+  if (custErr) console.warn("[getUserRole] customers error:", custErr.message);
 
-  if (customerError) console.error("Customer check error:", customerError.message);
-  if (customerData) return "customer";
+  if (custData) {
+    console.log("[getUserRole] role resolved: customer");
+    return "customer";
+  }
 
+  console.log("[getUserRole] role resolved: null");
   return null;
 }

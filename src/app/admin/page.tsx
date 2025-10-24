@@ -16,7 +16,6 @@ import {
 } from "recharts";
 
 export default function AdminDashboard() {
-
     interface Order {
         id: string;
         customer_name?: string;
@@ -24,13 +23,6 @@ export default function AdminDashboard() {
         status?: string;
         created_at: string;
         product_name?: string;
-    }
-
-    interface Product {
-        id: string;
-        name: string;
-        stock?: number;
-        // Add more if needed
     }
 
     interface SalesTrend {
@@ -46,12 +38,18 @@ export default function AdminDashboard() {
     const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
     const [adminName, setAdminName] = useState("Admin");
+
     const [stats, setStats] = useState({
         totalOrders: 0,
         totalRevenue: 0,
         totalCustomers: 0,
         totalProducts: 0,
+        revenueToday: 0,
+        revenueYesterday: 0,
+        revenue7Days: 0,
+        revenue30Days: 0,
     });
+
     const [orders, setOrders] = useState<Order[]>([]);
     const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
     const [salesTrend, setSalesTrend] = useState<SalesTrend[]>([]);
@@ -93,25 +91,54 @@ export default function AdminDashboard() {
         const customers = customersRes.data || [];
         const products = productsRes.data || [];
 
-        const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+        // Revenue calculations
+        const now = new Date();
+        const today = new Date(now);
+        today.setHours(0, 0, 0, 0);
+
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+
+        const last7Days = new Date(today);
+        last7Days.setDate(today.getDate() - 6); // include today
+
+        const last30Days = new Date(today);
+        last30Days.setDate(today.getDate() - 29);
+
+        let totalRevenue = 0;
+        let revenueToday = 0;
+        let revenueYesterday = 0;
+        let revenue7Days = 0;
+        let revenue30Days = 0;
 
         const productCount: Record<string, number> = {};
+        const dailySales: Record<string, number> = {};
+
         orders.forEach((o) => {
+            const total = o.total || 0;
+            const createdAt = new Date(o.created_at);
+
+            totalRevenue += total;
+
+            if (createdAt >= today) revenueToday += total;
+            if (createdAt >= yesterday && createdAt < today) revenueYesterday += total;
+            if (createdAt >= last7Days) revenue7Days += total;
+            if (createdAt >= last30Days) revenue30Days += total;
+
+            // Top products
             if (o.product_name) {
                 productCount[o.product_name] = (productCount[o.product_name] || 0) + 1;
             }
+
+            // Sales trend
+            const date = createdAt.toLocaleDateString("en-GB");
+            dailySales[date] = (dailySales[date] || 0) + total;
         });
 
         const topProducts = Object.entries(productCount)
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 3);
-
-        const dailySales: Record<string, number> = {};
-        orders.forEach((o) => {
-            const date = new Date(o.created_at).toLocaleDateString("en-GB");
-            dailySales[date] = (dailySales[date] || 0) + (o.total || 0);
-        });
 
         const salesTrend = Object.entries(dailySales).map(([date, total]) => ({
             date,
@@ -123,7 +150,12 @@ export default function AdminDashboard() {
             totalRevenue,
             totalCustomers: customers.length,
             totalProducts: products.length,
+            revenueToday,
+            revenueYesterday,
+            revenue7Days,
+            revenue30Days,
         });
+
         setOrders(orders.slice(-5).reverse());
         setTopProducts(topProducts);
         setSalesTrend(salesTrend);
@@ -170,6 +202,37 @@ export default function AdminDashboard() {
                         <QuickLink href="/admin/profile" emoji="⚙️" label="Settings" />
                     </div>
 
+                    {/* Sales Breakdown */}
+                    <div className="bg-white border rounded-xl p-5 shadow-sm">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-4">Sales Summary</h3>
+                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-700">
+                            <div className="flex justify-between">
+                                <span>Today</span>
+                                <span className="font-medium text-green-700">
+                                    RM {stats.revenueToday.toFixed(2)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Yesterday</span>
+                                <span className="font-medium text-green-700">
+                                    RM {stats.revenueYesterday.toFixed(2)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Last 7 Days</span>
+                                <span className="font-medium text-green-700">
+                                    RM {stats.revenue7Days.toFixed(2)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Last 30 Days</span>
+                                <span className="font-medium text-green-700">
+                                    RM {stats.revenue30Days.toFixed(2)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Top Products */}
                     <div className="bg-white border rounded-xl p-5 shadow-sm">
                         <h3 className="text-sm font-semibold text-gray-700 mb-4">Top Products</h3>
@@ -201,7 +264,13 @@ export default function AdminDashboard() {
                                 <XAxis dataKey="date" fontSize={10} />
                                 <YAxis fontSize={10} />
                                 <Tooltip />
-                                <Line type="monotone" dataKey="total" stroke="#15803d" strokeWidth={2} dot={false} />
+                                <Line
+                                    type="monotone"
+                                    dataKey="total"
+                                    stroke="#15803d"
+                                    strokeWidth={2}
+                                    dot={false}
+                                />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
