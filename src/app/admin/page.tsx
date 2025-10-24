@@ -256,7 +256,7 @@ export default function AdminDashboard() {
                 {/* Right Panel */}
                 <div className="flex flex-col gap-6">
                     {/* Sales Chart */}
-                    <div className="bg-white border rounded-xl p-5 shadow-sm h-[300px]">
+                    <div className="bg-white border rounded-xl p-5 shadow-sm min-h-[300px] h-[300px] relative">
                         <h3 className="text-sm font-semibold text-gray-700 mb-4">Sales Trend</h3>
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={salesTrend}>

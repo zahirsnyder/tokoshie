@@ -83,6 +83,8 @@ export default function ProductList() {
                                     src={product.image_url}
                                     alt={product.name}
                                     fill
+                                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                    priority={products.indexOf(product) < 3} // prioritize top 3 products
                                     className="object-cover"
                                 />
                             ) : (
@@ -113,8 +115,8 @@ export default function ProductList() {
                                     Stock:{" "}
                                     <span
                                         className={`font-semibold ${product.stock !== undefined && product.stock <= 0
-                                                ? "text-red-600"
-                                                : "text-gray-800"
+                                            ? "text-red-600"
+                                            : "text-gray-800"
                                             }`}
                                     >
                                         {product.stock ?? "N/A"}
