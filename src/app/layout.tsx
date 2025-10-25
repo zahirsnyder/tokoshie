@@ -1,10 +1,10 @@
-
 import { CartProvider } from "@/context/CartContext";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import NavbarWrapper from "@/components/NavbarWrapper";
 import MainWrapper from "@/components/MainWrapper";
 import { Noto_Serif_JP } from "next/font/google";
+import { Suspense } from "react"; // ✅ Add Suspense
 
 const notoJP = Noto_Serif_JP({ subsets: ["latin"], weight: ["400", "700"] });
 
@@ -34,11 +34,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" data-scroll-behavior="smooth">
       <body className={`bg-white text-gray-900 ${notoJP.className}`}>
         <CartProvider>
-          <NavbarWrapper />
+          <div className="print:hidden">
+            <NavbarWrapper />
+          </div>
 
-          {/* ✅ Conditional padding */}
           <MainWrapper>
-            {children}
+            {/* ✅ Wrap children in Suspense */}
+            <Suspense fallback={<div>Loading...</div>}>
+              {children}
+            </Suspense>
           </MainWrapper>
 
           <Toaster position="top-right" />

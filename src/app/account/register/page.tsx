@@ -17,12 +17,36 @@ export default function RegisterPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  const handleNext = (e: React.FormEvent) => {
+  // ✅ Step 1: Check if email already exists
+  const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    setStep(2);
+
+    setErrorMsg("");
+    setLoading(true);
+
+    try {
+      const { data: exists, error } = await supabase
+        .rpc("check_user_exists", { user_email: email });
+
+      if (error) {
+        throw error;
+      }
+
+      if (exists) {
+        router.push(`/account/login?email=${encodeURIComponent(email)}`);
+        return;
+      }
+
+      setStep(2); // continue to register
+    } catch (err) {
+      setErrorMsg("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // ✅ Step 2: Register new user
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
@@ -30,37 +54,23 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // ✅ Step 1: Register user (Supabase will trigger customers insert automatically)
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { full_name: name }, // this is stored in raw_user_meta_data
+          data: { full_name: name },
         },
       });
 
       if (error) {
-        console.error("Signup failed:", error.message);
         setErrorMsg(error.message);
-        setLoading(false);
         return;
       }
 
-      // ✅ Step 2: Inform the user
-      setSuccessMsg(
-        "Registration successful! Please check your email to verify your account before logging in."
-      );
-
-      // ✅ Optional delay before redirecting to login
-      setTimeout(() => {
-        router.push("/account/login");
-      }, 3000);
-    } catch (err) {
-      if (err instanceof Error) {
-        setErrorMsg(err.message);
-      } else {
-        setErrorMsg("Something went wrong. Please try again.");
-      }
+      setSuccessMsg("Registration successful! Please verify your email.");
+      setTimeout(() => router.push("/account/login"), 3000);
+    } catch {
+      setErrorMsg("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -73,9 +83,7 @@ export default function RegisterPage() {
         className="w-full max-w-sm text-center"
       >
         <h1 className="text-3xl font-bold text-black mb-2">Create Account</h1>
-        <p className="text-black font-medium mb-6">
-          Sign up or log in to continue
-        </p>
+        <p className="text-black font-medium mb-6">Sign up or log in to continue</p>
 
         {/* Tabs */}
         <div className="flex bg-gray-100 rounded-full p-1 mb-8 shadow-inner">
@@ -107,15 +115,15 @@ export default function RegisterPage() {
             />
             <button
               type="submit"
-              disabled={!email}
+              disabled={!email || loading}
               className="w-full bg-green-700 text-white rounded-full py-3 disabled:opacity-60 hover:bg-green-800 transition"
             >
-              Continue
+              {loading ? "Checking..." : "Continue"}
             </button>
           </>
         )}
 
-        {/* Step 2: Full name + Password */}
+        {/* Step 2: Name + Password */}
         {step === 2 && (
           <>
             <input
@@ -147,9 +155,7 @@ export default function RegisterPage() {
         {/* Feedback */}
         {errorMsg && <p className="text-red-600 text-sm mt-4">{errorMsg}</p>}
         {successMsg && (
-          <p className="text-green-700 text-sm mt-4 font-medium">
-            {successMsg}
-          </p>
+          <p className="text-green-700 text-sm mt-4 font-medium">{successMsg}</p>
         )}
       </form>
     </main>

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Link from "next/link";
 import { getUserRole } from "@/lib/getUserRole";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClientComponentClient();
 
   const [email, setEmail] = useState("");
@@ -16,7 +17,7 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [showModal, setShowModal] = useState(false);
 
-  // 🔁 Auto-redirect if already logged in
+  // ✅ On mount: check session + prefill email
   useEffect(() => {
     const checkSession = async () => {
       const {
@@ -35,20 +36,27 @@ export default function LoginPage() {
     };
 
     checkSession();
-  }, []);
+
+    // ✅ Prefill email + show notice if redirected from register
+    const emailFromQuery = searchParams.get("email");
+    const isRegistered = searchParams.get("registered");
+
+    if (emailFromQuery) {
+      setEmail(emailFromQuery);
+      if (isRegistered) {
+        setErrorMsg("This email is already registered. Please log in.");
+      }
+    }
+  }, [searchParams, supabase, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMsg("");
+    setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      console.error("Login error:", error.message);
       if (error.message.toLowerCase().includes("email not confirmed")) {
         setShowModal(true);
       } else {
@@ -58,8 +66,7 @@ export default function LoginPage() {
       return;
     }
 
-    // Short delay to allow session to populate
-    await new Promise((res) => setTimeout(res, 300));
+    await new Promise((res) => setTimeout(res, 300)); // Wait for session
 
     const {
       data: { session },
@@ -73,7 +80,6 @@ export default function LoginPage() {
     }
 
     const role = await getUserRole(user.email);
-
     if (role === "admin") {
       router.push("/admin");
     } else if (role === "customer") {
@@ -89,9 +95,7 @@ export default function LoginPage() {
     <main className="min-h-screen flex items-center justify-center bg-white px-4">
       <form onSubmit={handleLogin} className="w-full max-w-sm text-center">
         <h1 className="text-3xl font-bold text-black mb-2">Welcome back</h1>
-        <p className="text-black font-medium mb-6">
-          Log in to access your account
-        </p>
+        <p className="text-black font-medium mb-6">Log in to access your account</p>
 
         <div className="flex bg-gray-100 rounded-full p-1 mb-8 shadow-inner">
           <Link

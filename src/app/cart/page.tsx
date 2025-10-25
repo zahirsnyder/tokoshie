@@ -106,8 +106,8 @@ export default function CartPage() {
     if (!cartItems.length) {
         return (
             <main className="max-w-5xl mx-auto px-6 py-10 text-center">
-                <h1 className="text-3xl font-bold text-gray-800 mb-3">Your Cart</h1>
-                <p className="text-gray-500">Your cart is empty.</p>
+                <h1 className="text-3xl font-bold text-gray-800 mb-3">Cart</h1>
+                <p className="text-gray-500">Cart is empty.</p>
                 <Link
                     href="/shop"
                     className="inline-block mt-4 text-green-700 hover:underline font-medium"
@@ -121,7 +121,7 @@ export default function CartPage() {
     return (
         <main className="max-w-5xl mx-auto px-6 py-10 space-y-10 relative">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Your Cart</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Cart</h1>
                 <Link
                     href="/shop"
                     className="text-green-700 hover:underline text-sm font-medium"
