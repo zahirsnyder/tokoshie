@@ -78,12 +78,14 @@ export default async function ShopPage() {
                             )}
 
                             {/* Product Image - full width */}
-                            <div className="relative w-full h-[300px]">
+                            <div className="w-full h-[400px] relative overflow-hidden rounded-t-xl">
                                 <Image
                                     src={p.image_url || "/placeholder.jpg"}
                                     alt={p.name}
-                                    fill
-                                    className="object-cover"
+                                    width={400}
+                                    height={400}
+                                    className="object-cover w-full h-full"
+                                    quality={90}
                                 />
                             </div>
 

@@ -1,17 +1,25 @@
 "use client";
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 // 🧩 Product Type
-export interface Product {
+export type Product = {
   id: string;
   name: string;
   price: number;
   image_url?: string;
-  description?: string;
-  category?: string;
-}
+  stock?: number;
+  quantity: number;
+} & Record<string, string | number | boolean | undefined>;
 
-// 🧩 Cart Item with Quantity
+// 🧩 Cart Item
 export interface CartItem extends Product {
   quantity: number;
 }
@@ -33,37 +41,87 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 // 🧩 Provider
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // Load from localStorage
+  // ✅ Load current user and listen to auth changes
   useEffect(() => {
-    const saved = localStorage.getItem("cart");
-    if (saved) setCartItems(JSON.parse(saved));
-  }, []);
+    const supabase = createClientComponentClient();
 
-  // Save to localStorage
+    const getUser = async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        setUserId(data.user?.id ?? null);
+      } catch (err) {
+        if (err instanceof Error) {
+          console.error("Failed to get user:", err.message);
+        } else {
+          console.error("Failed to get user:", err);
+        }
+      }
+    };
+
+    getUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        const newUserId = session?.user?.id ?? null;
+        setUserId(newUserId);
+        if (!newUserId) {
+          // Logged out
+          setCartItems([]);
+        }
+      }
+    );
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, []); // ✅ intentionally no supabase in deps
+
+  // ✅ Load cart from localStorage when userId is known
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cartItems));
-  }, [cartItems]);
+    if (!userId) return;
 
-  // ✅ Add or increase quantity
+    try {
+      const saved = localStorage.getItem(`cart-${userId}`);
+      if (saved) {
+        setCartItems(JSON.parse(saved));
+      }
+    } catch (err) {
+      console.warn("Failed to parse cart from localStorage:", err);
+    }
+  }, [userId]);
+
+  // ✅ Save cart to localStorage per user
+  useEffect(() => {
+    if (userId) {
+      try {
+        localStorage.setItem(`cart-${userId}`, JSON.stringify(cartItems));
+      } catch (err) {
+        console.warn("Failed to save cart to localStorage:", err);
+      }
+    }
+  }, [cartItems, userId]);
+
+  // ✅ Core Cart Actions
   const addToCart = (product: Product) => {
     setCartItems((prev) => {
       const existing = prev.find((p) => p.id === product.id);
       if (existing) {
         return prev.map((p) =>
-          p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p
+          p.id === product.id
+            ? { ...p, quantity: p.quantity + (product.quantity || 1) }
+            : p
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...product, quantity: product.quantity || 1 }];
     });
   };
 
-  // ✅ Remove item entirely
   const removeItem = (id: string) => {
     setCartItems((prev) => prev.filter((p) => p.id !== id));
   };
 
-  // ✅ Increase / Decrease
   const increaseQty = (id: string) => {
     setCartItems((prev) =>
       prev.map((p) =>
@@ -76,30 +134,45 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCartItems((prev) =>
       prev
         .map((p) =>
-          p.id === id ? { ...p, quantity: Math.max(1, p.quantity - 1) } : p
+          p.id === id ? { ...p, quantity: p.quantity - 1 } : p
         )
         .filter((p) => p.quantity > 0)
     );
   };
 
-  // ✅ Clear cart
-  const clearCart = () => setCartItems([]);
+  const clearCart = () => {
+    setCartItems([]);
+    if (userId) {
+      localStorage.removeItem(`cart-${userId}`);
+    }
+  };
 
-  // ✅ Total
-  const total = cartItems.reduce((sum, p) => sum + p.price * p.quantity, 0);
+  const total = cartItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
 
   return (
     <CartContext.Provider
-      value={{ cartItems, addToCart, removeItem, increaseQty, decreaseQty, clearCart, total }}
+      value={{
+        cartItems,
+        addToCart,
+        removeItem,
+        increaseQty,
+        decreaseQty,
+        clearCart,
+        total,
+      }}
     >
       {children}
     </CartContext.Provider>
   );
 }
 
-// 🧩 Hook
+// 🧩 Custom Hook
 export function useCart() {
   const context = useContext(CartContext);
-  if (!context) throw new Error("useCart must be used inside CartProvider");
+  if (!context)
+    throw new Error("useCart must be used inside CartProvider");
   return context;
 }

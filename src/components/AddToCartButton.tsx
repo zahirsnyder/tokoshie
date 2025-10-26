@@ -1,14 +1,28 @@
 "use client";
+
 import { useCart } from "@/context/CartContext";
-import type { Product } from "@/context/CartContext"; // ✅ import the shared type
+import type { Product } from "@/context/CartContext"; // ✅ shared type
 import toast from "react-hot-toast";
 
-export default function AddToCartButton({ product }: { product: Product }) {
+type AddToCartButtonProps = {
+  product: Product;
+  quantity?: number; // ✅ new optional prop
+};
+
+export default function AddToCartButton({ product, quantity = 1 }: AddToCartButtonProps) {
   const { addToCart } = useCart();
 
   const handleClick = () => {
-    addToCart(product);
-    toast.success(`${product.name} added to cart!`, { position: "top-right" });
+    if (!product) return;
+
+    // ✅ Pass quantity along with the product
+    addToCart({ ...product, quantity } as Product & { quantity: number });
+
+    // ✅ Dynamic success message
+    toast.success(
+      `${quantity} × ${product.name} added to cart!`,
+      { position: "top-right" }
+    );
   };
 
   return (

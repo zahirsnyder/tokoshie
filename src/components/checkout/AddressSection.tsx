@@ -3,6 +3,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import AddressForm from '@/app/account/address/AddressForm';
 import type { Address } from '@/types/address';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { getUserRole } from '@/lib/getUserRole';
+
+type Company = {
+  id: string;
+  auth_user_id: string;
+  company_name: string;
+  company_ssm: string;
+  company_email: string;
+  company_phone: string;
+  company_address1: string;
+  company_address2?: string;
+  company_postcode: string;
+  company_city: string;
+  company_state: string;
+  company_country: string;
+};
 
 interface Props {
   savedAddresses: Address[];
@@ -29,10 +46,14 @@ export default function AddressSection({
   onEditRequest,
   onCancelEdit,
 }: Props) {
+  const supabase = createClientComponentClient();
   const [showForm, setShowForm] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [collapsed, setCollapsed] = useState(false);
+  const [, setCollapsed] = useState(false);
+
+  const [role, setRole] = useState<'customer' | 'company' | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
 
   const sorted = useMemo(() => {
     const copy = [...savedAddresses];
@@ -69,44 +90,74 @@ export default function AddressSection({
     setShowForm(false);
   };
 
-  if (isActive && collapsed) {
-    return (
-      <div className="pb-12">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[20px] leading-6 font-medium text-black">Delivery Address</h2>
-          <button
-            type="button"
-            onClick={() => setCollapsed(false)}
-            className="text-sm text-gray-800 hover:underline"
-          >
-            Edit
-          </button>
-        </div>
+  // 🏢 Load company info if role is company
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return;
 
-        {selectedAddress && (
-          <div className="text-sm text-gray-800 leading-relaxed">
-            <p className="font-medium text-black mb-1">
-              {selectedAddress.first_name} {selectedAddress.last_name}
-            </p>
-            {selectedAddress.address1 && <p>{selectedAddress.address1}</p>}
-            {(selectedAddress.city || selectedAddress.state || selectedAddress.postal_code) && (
-              <p>
-                {selectedAddress.city && `${selectedAddress.city}, `}
-                {selectedAddress.state && `${selectedAddress.state}, `}
-                {selectedAddress.postal_code}
-              </p>
-            )}
-            {selectedAddress.country && <p>{selectedAddress.country}</p>}
-          </div>
-        )}
+      const currentUser = data.user;
+      const userRole = await getUserRole(currentUser.email || '');
+      setRole(userRole === 'company' ? 'company' : 'customer');
 
-        <div className="mt-8 h-[2px] bg-gradient-to-r from-gray-300 via-gray-500 to-gray-300" />
-      </div>
-    );
-  }
+      if (userRole === 'company') {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('auth_user_id', currentUser.id)
+          .single();
+
+        if (companyData) {
+          setCompany(companyData);
+        }
+      }
+    };
+
+    loadUser();
+  }, [supabase]);
 
   return (
     <div className="pb-12">
+      {role === 'company' && company && (
+        <div className="mb-6 grid gap-6 md:grid-cols-2">
+          {/* Billing Address */}
+          <div className="text-sm text-gray-800 border border-gray-200 rounded-lg p-4">
+            <h3 className="font-semibold text-black mb-2">Billing Address</h3>
+            <p className="font-medium">{company.company_name}</p>
+            <p>SSM: {company.company_ssm}</p>
+            <p>Email: {company.company_email}</p>
+            <p>Phone: {company.company_phone}</p>
+            <p>
+              {company.company_address1}
+              {company.company_address2 ? `, ${company.company_address2}` : ''}
+            </p>
+            <p>
+              {company.company_postcode} {company.company_city}, {company.company_state}
+            </p>
+            <p>{company.company_country}</p>
+          </div>
+
+          {/* Shipping Address */}
+          {selectedAddress && (
+            <div className="text-sm text-gray-800 border border-gray-200 rounded-lg p-4">
+              <h3 className="font-semibold text-black mb-2">Shipping Address</h3>
+              <p className="font-medium">
+                {selectedAddress.first_name} {selectedAddress.last_name}
+              </p>
+              <p>{selectedAddress.address1}</p>
+              {(selectedAddress.city || selectedAddress.state || selectedAddress.postal_code) && (
+                <p>
+                  {selectedAddress.city && `${selectedAddress.city}, `}
+                  {selectedAddress.state && `${selectedAddress.state}, `}
+                  {selectedAddress.postal_code}
+                </p>
+              )}
+              <p>{selectedAddress.country}</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[20px] leading-6 font-medium text-black">Delivery Address</h2>
@@ -160,19 +211,15 @@ export default function AddressSection({
         </>
       )}
 
-      {/* List with 3 columns (Name | Address | Actions) */}
+      {/* Address List */}
       {isActive && !showForm && (
         <>
           <div className="space-y-3">
             {addresses.map(address => {
               const isSelected = selectedAddress?.id === address.id;
-
-              // Three fixed lines for the middle column
               const line1 = address.address1 || '';
               const line2 = [address.city, address.state].filter(Boolean).join(', ');
-              const line3 = [address.postal_code, address.country]
-                .filter(Boolean)
-                .join(' – ');
+              const line3 = [address.postal_code, address.country].filter(Boolean).join(' – ');
 
               return (
                 <div
@@ -182,9 +229,7 @@ export default function AddressSection({
                     isSelected ? 'border-black' : 'border-gray-300 hover:border-gray-400',
                   ].join(' ')}
                 >
-                  {/* 12-col grid: 3 / 7 / 2 */}
                   <div className="grid grid-cols-12 items-start gap-4">
-                    {/* (1) Radio + Name */}
                     <label className="col-span-12 md:col-span-3 flex items-center gap-3 cursor-pointer">
                       <input
                         type="radio"
@@ -198,14 +243,12 @@ export default function AddressSection({
                       </span>
                     </label>
 
-                    {/* (2) Address – three left-aligned lines */}
                     <div className="col-span-12 md:col-span-7 text-left break-words">
                       {line1 && <p className="text-sm font-semibold">{line1}</p>}
                       {line2 && <p className="text-sm font-semibold">{line2}</p>}
                       {line3 && <p className="text-sm font-semibold">{line3}</p>}
                     </div>
 
-                    {/* (3) Actions */}
                     <div className="col-span-12 md:col-span-2 flex md:justify-end items-start gap-4 text-sm whitespace-nowrap">
                       {address.is_default && (
                         <span className="px-2 py-1 rounded-full text-xs font-extrabold border-2 text-green-700 border-green-700 bg-green-50">
@@ -233,7 +276,7 @@ export default function AddressSection({
             })}
           </div>
 
-          {/* Add New */}
+          {/* Add new address button */}
           <div className="mt-6 flex justify-end">
             <button
               type="button"
@@ -247,7 +290,7 @@ export default function AddressSection({
             </button>
           </div>
 
-          {/* Confirm */}
+          {/* Confirm button */}
           <div className="mt-6 flex justify-end">
             <button
               type="button"

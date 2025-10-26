@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { Address } from '@/types/address';
 
 interface Props {
@@ -23,6 +24,7 @@ export default function PaymentSection({
   onEditRequest,
 }: Props) {
   const isActive = step === 'payment';
+  const [method, setMethod] = useState<'fpx' | 'card'>('fpx');
 
   return (
     <section className="pt-6 !border-0 !shadow-none !rounded-none">
@@ -43,24 +45,53 @@ export default function PaymentSection({
       {!isActive ? (
         <p className="text-sm text-gray-600">Delivery method confirmed.</p>
       ) : (
-        <div className="space-y-4">
-          <p className="text-sm text-gray-700">Cryptocurrency</p>
-          <p className="text-sm text-gray-600">
-            Billing address <span className="font-medium">Same as Delivery</span>
-          </p>
+        <div className="space-y-6">
+          {/* Payment Method Selection */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-800">Select Payment Method</p>
 
-          {selectedAddress && (
-            <div className="text-sm text-gray-700 leading-relaxed border rounded-md p-4">
-              <p className="font-medium text-black">
-                {selectedAddress.first_name} {selectedAddress.last_name}
-              </p>
-              {selectedAddress.address1 && <p>{selectedAddress.address1}</p>}
-              {selectedAddress.address2 && <p>{selectedAddress.address2}</p>}
-              <p>
-                {selectedAddress.postal_code} - {selectedAddress.country}
-              </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label
+                className={`border rounded-md p-4 cursor-pointer transition-all ${method === 'fpx'
+                    ? 'border-black ring-2 ring-black'
+                    : 'border-gray-300 hover:border-gray-400'
+                  }`}
+              >
+                <input
+                  type="radio"
+                  name="payment"
+                  value="fpx"
+                  checked={method === 'fpx'}
+                  onChange={() => setMethod('fpx')}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">🏦</span>
+                  <span className="text-sm font-semibold text-gray-800">FPX Online Banking</span>
+                </div>
+              </label>
+
+              <label
+                className={`border rounded-md p-4 cursor-pointer transition-all ${method === 'card'
+                    ? 'border-black ring-2 ring-black'
+                    : 'border-gray-300 hover:border-gray-400'
+                  }`}
+              >
+                <input
+                  type="radio"
+                  name="payment"
+                  value="card"
+                  checked={method === 'card'}
+                  onChange={() => setMethod('card')}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">💳</span>
+                  <span className="text-sm font-semibold text-gray-800">Debit / Credit Card</span>
+                </div>
+              </label>
             </div>
-          )}
+          </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -69,11 +100,10 @@ export default function PaymentSection({
               type="button"
               onClick={() => onConfirm()}
               disabled={loading}
-              className={`px-5 py-2 rounded-md text-sm font-semibold ${
-                loading
+              className={`px-5 py-2 rounded-md text-sm font-semibold ${loading
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-black text-white hover:bg-gray-900'
-              }`}
+                }`}
             >
               {loading ? 'Placing order…' : 'Place Order'}
             </button>

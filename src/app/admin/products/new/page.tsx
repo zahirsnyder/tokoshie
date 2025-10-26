@@ -7,62 +7,87 @@ import Link from "next/link";
 
 export default function AddProductPage() {
   const router = useRouter();
+
   const [form, setForm] = useState({
     name: "",
+    slug: "",
     price: "",
     description: "",
     stock: "",
   });
+
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // 🧠 Helper: Auto-generate slug from product name
+  function generateSlug(name: string) {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "-") // replace spaces with dashes
+      .replace(/[^\w-]+/g, ""); // remove invalid chars
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
 
-    let image_url = null;
+    try {
+      let image_url: string | null = null;
 
-    // ✅ Upload image if selected
-    if (imageFile) {
-      const fileExt = imageFile.name.split(".").pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `products/${fileName}`;
+      // 🟢 Ensure slug is generated
+      const slug = form.slug || generateSlug(form.name);
 
-      const { error: uploadError } = await supabase.storage
-        .from("product-images")
-        .upload(filePath, imageFile);
+      // ✅ Upload image if provided
+      if (imageFile) {
+        const ext = imageFile.name.split(".").pop();
+        const filename = `${Date.now()}.${ext}`;
+        const filePath = `products/${filename}`;
 
-      if (uploadError) {
-        alert("Image upload failed!");
-        setSaving(false);
-        return;
+        const { error: uploadError } = await supabase.storage
+          .from("product-images")
+          .upload(filePath, imageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from("product-images")
+          .getPublicUrl(filePath);
+
+        image_url = publicUrlData.publicUrl;
       }
 
-      const { data } = supabase.storage
-        .from("product-images")
-        .getPublicUrl(filePath);
-      image_url = data.publicUrl;
+      // ✅ Insert product record
+      const { error: insertError } = await supabase.from("products").insert([
+        {
+          name: form.name,
+          slug, // 👈 required field
+          price: parseFloat(form.price),
+          description: form.description || null,
+          stock: form.stock ? parseInt(form.stock) : 0,
+          image_url,
+          category: "matcha", // optional default
+        },
+      ]);
+
+      if (insertError) throw insertError;
+
+      alert("✅ Product added successfully!");
+      router.push("/admin/products");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error("Error adding product:", err.message);
+        alert(err.message);
+      } else {
+        console.error("Unknown error adding product:", err);
+        alert("An unknown error occurred.");
+      }
     }
-
-    // ✅ Insert into DB
-    const { error } = await supabase.from("products").insert([
-      {
-        name: form.name,
-        price: parseFloat(form.price),
-        description: form.description,
-        stock: form.stock ? parseInt(form.stock) : 0,
-        image_url,
-      },
-    ]);
-
-    setSaving(false);
-    if (error) alert(error.message);
-    else router.push("/admin/products");
   }
 
   return (
     <main className="max-w-xl mx-auto p-6">
-      {/* 🔙 Back Button */}
+      {/* Back Button */}
       <div className="mb-4">
         <Link
           href="/admin/products"
@@ -78,10 +103,27 @@ export default function AddProductPage() {
         {/* Product Name */}
         <input
           type="text"
-          placeholder="Name"
+          placeholder="Product Name"
           className="border rounded w-full p-2"
           value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          onChange={(e) => {
+            const newName = e.target.value;
+            setForm({
+              ...form,
+              name: newName,
+              slug: generateSlug(newName), // auto-update slug as you type
+            });
+          }}
+          required
+        />
+
+        {/* Slug (auto-filled, editable if needed) */}
+        <input
+          type="text"
+          placeholder="Slug"
+          className="border rounded w-full p-2"
+          value={form.slug}
+          onChange={(e) => setForm({ ...form, slug: e.target.value })}
           required
         />
 
@@ -99,7 +141,7 @@ export default function AddProductPage() {
         {/* Stock */}
         <input
           type="number"
-          placeholder="Stock (optional)"
+          placeholder="Stock"
           className="border rounded w-full p-2"
           value={form.stock}
           onChange={(e) => setForm({ ...form, stock: e.target.value })}
@@ -107,13 +149,13 @@ export default function AddProductPage() {
 
         {/* Description */}
         <textarea
-          placeholder="Description (optional)"
+          placeholder="Description"
           className="border rounded w-full p-2"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
 
-        {/* Image */}
+        {/* Image Upload */}
         <div>
           <label className="text-sm font-medium">Product Image</label>
           <input
@@ -128,7 +170,7 @@ export default function AddProductPage() {
         <button
           type="submit"
           disabled={saving}
-          className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
+          className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 transition"
         >
           {saving ? "Saving..." : "Save Product"}
         </button>

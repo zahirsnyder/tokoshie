@@ -9,6 +9,7 @@ import Link from "next/link";
 export default function EditProductPage() {
   const router = useRouter();
   const { id } = useParams();
+
   const [form, setForm] = useState({
     name: "",
     price: "",
@@ -16,12 +17,24 @@ export default function EditProductPage() {
     image_url: "",
     stock: "",
   });
+
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Fetch existing product data
   useEffect(() => {
     async function fetchProduct() {
-      const { data } = await supabase.from("products").select("*").eq("id", id).single();
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching product:", error.message);
+        return;
+      }
+
       if (data) {
         setForm({
           name: data.name || "",
@@ -31,31 +44,84 @@ export default function EditProductPage() {
           stock: data.stock?.toString() || "",
         });
       }
+
       setLoading(false);
     }
+
     fetchProduct();
   }, [id]);
 
+  // Handle update submission
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault();
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      alert("You must be logged in to update the product.");
+      return;
+    }
+
     let image_url = form.image_url;
 
-    // Upload new image if selected
+    // 🟠 Step 1: Delete old image (via secure API) if uploading new
+    if (imageFile && form.image_url) {
+      try {
+        const url = new URL(form.image_url);
+        const pathParts = url.pathname.split("/");
+        const bucketIndex = pathParts.findIndex((part) => part === "product-images");
+        const filePath = pathParts.slice(bucketIndex + 1).join("/");
+
+        if (!filePath) throw new Error("❌ Failed to parse file path from image URL.");
+
+        console.log("🧹 Deleting old image via server API:", filePath);
+
+        // 🔐 Call secure API route (service key deletes for real)
+        const res = await fetch("/api/delete-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filePath }),
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) {
+          console.error("❌ Failed to delete old image:", result.error);
+        } else {
+          console.log("✅ Old image deleted successfully:", filePath);
+        }
+      } catch (err) {
+        console.error("❌ Error deleting old image:", err);
+      }
+    }
+
+    // 🟢 Step 2: Upload new image
     if (imageFile) {
-      const fileExt = imageFile.name.split(".").pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `products/${fileName}`;
+      const ext = imageFile.name.split(".").pop();
+      const filename = `${Date.now()}.${ext}`;
+      const filePath = `products/${filename}`;
 
       const { error: uploadError } = await supabase.storage
         .from("product-images")
         .upload(filePath, imageFile);
 
-      if (!uploadError) {
-        const { data } = supabase.storage.from("product-images").getPublicUrl(filePath);
-        image_url = data.publicUrl;
+      if (uploadError) {
+        console.error("Image upload failed:", uploadError.message);
+        alert("Failed to upload image.");
+        return;
       }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(filePath);
+
+      image_url = publicUrlData.publicUrl;
     }
 
+    // 🟢 Step 3: Update product in database
     const { error } = await supabase
       .from("products")
       .update({
@@ -67,18 +133,21 @@ export default function EditProductPage() {
       })
       .eq("id", id);
 
-    if (!error) {
-      router.push("/admin/products");
+    if (error) {
+      console.error("Update failed:", error.message);
+      alert("Failed to update product.");
     } else {
-      alert("Update failed.");
+      router.push("/admin/products");
     }
   }
 
-  if (loading) return <div className="p-6 text-gray-500">Loading product...</div>;
+  if (loading) {
+    return <div className="p-6 text-gray-500">Loading product...</div>;
+  }
 
   return (
     <main className="max-w-xl mx-auto p-6">
-      {/* Back Button */}
+      {/* Back link */}
       <div className="mb-4">
         <Link
           href="/admin/products"
@@ -125,18 +194,22 @@ export default function EditProductPage() {
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
 
-        {/* Preview image */}
-        {form.image_url && (
-          <div className="relative w-32 h-32">
-            <Image
-              src={form.image_url || "/placeholder.jpg"}
-              alt="Product"
-              fill
-              sizes="128px"
-              className="object-cover rounded border"
-            />
-          </div>
-        )}
+        {/* Preview current or uploaded image */}
+        <div>
+          {form.image_url ? (
+            <div className="relative w-32 h-32 mb-2">
+              <Image
+                src={form.image_url}
+                alt="Product"
+                fill
+                sizes="128px"
+                className="object-cover rounded border"
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No image uploaded</p>
+          )}
+        </div>
 
         <input
           type="file"

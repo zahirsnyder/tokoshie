@@ -17,7 +17,17 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [showModal, setShowModal] = useState(false);
 
-  // ✅ On mount: check session + prefill email
+  // ✅ Add this helper here
+  const redirectByRole = (role: string | null) => {
+    if (role === "admin") router.push("/admin");
+    else if (role === "company" || role === "customer") {
+      router.push("/account/profile");
+    } else {
+      setErrorMsg("Access denied: your email is not registered.");
+    }
+  };
+
+  // ✅ Use it inside useEffect()
   useEffect(() => {
     const checkSession = async () => {
       const {
@@ -27,20 +37,15 @@ export default function LoginPage() {
       const user = session?.user;
       if (user?.email) {
         const role = await getUserRole(user.email);
-        if (role === "admin") {
-          router.push("/admin");
-        } else if (role === "customer") {
-          router.push("/account/profile");
-        }
+        redirectByRole(role);
       }
     };
 
     checkSession();
 
-    // ✅ Prefill email + show notice if redirected from register
+    // Prefill logic
     const emailFromQuery = searchParams.get("email");
     const isRegistered = searchParams.get("registered");
-
     if (emailFromQuery) {
       setEmail(emailFromQuery);
       if (isRegistered) {
@@ -49,6 +54,7 @@ export default function LoginPage() {
     }
   }, [searchParams, supabase, router]);
 
+  // ✅ Use it inside handleLogin()
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
@@ -66,8 +72,6 @@ export default function LoginPage() {
       return;
     }
 
-    await new Promise((res) => setTimeout(res, 300)); // Wait for session
-
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -80,13 +84,7 @@ export default function LoginPage() {
     }
 
     const role = await getUserRole(user.email);
-    if (role === "admin") {
-      router.push("/admin");
-    } else if (role === "customer") {
-      router.push("/account/profile");
-    } else {
-      setErrorMsg("Access denied: your email is not registered.");
-    }
+    redirectByRole(role);
 
     setLoading(false);
   };

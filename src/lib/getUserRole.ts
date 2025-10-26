@@ -2,12 +2,13 @@ import { supabase } from "./supabaseClient";
 
 export async function getUserRole(
   email?: string
-): Promise<"admin" | "customer" | null> {
+): Promise<"admin" | "company" | "customer" | null> {
   const norm = (email ?? "").trim().toLowerCase();
   if (!norm) return null;
 
   console.log("[getUserRole] start → email:", norm);
 
+  // 🔹 1️⃣ Check Admins
   const { data: adminData, error: adminErr } = await supabase
     .from("admins")
     .select("role")
@@ -22,6 +23,22 @@ export async function getUserRole(
     return "admin";
   }
 
+  // 🔹 2️⃣ Check Companies
+  const { data: compData, error: compErr } = await supabase
+    .from("companies")
+    .select("company_email")
+    .ilike("company_email", norm)
+    .maybeSingle();
+
+  console.log("[getUserRole] companies result:", compData);
+  if (compErr) console.warn("[getUserRole] companies error:", compErr.message);
+
+  if (compData) {
+    console.log("[getUserRole] role resolved: company");
+    return "company";
+  }
+
+  // 🔹 3️⃣ Check Customers
   const { data: custData, error: custErr } = await supabase
     .from("customers")
     .select("email")
@@ -36,6 +53,7 @@ export async function getUserRole(
     return "customer";
   }
 
+  // 🚫 None found
   console.log("[getUserRole] role resolved: null");
   return null;
 }

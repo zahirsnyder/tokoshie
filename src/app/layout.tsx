@@ -3,10 +3,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import NavbarWrapper from "@/components/NavbarWrapper";
 import MainWrapper from "@/components/MainWrapper";
-import { Noto_Serif_JP } from "next/font/google";
 import { Suspense } from "react"; // ✅ Add Suspense
-
-const notoJP = Noto_Serif_JP({ subsets: ["latin"], weight: ["400", "700"] });
 
 export const metadata = {
   title: "TOKOSHIE Matcha | Premium Japanese Matcha Powder",
@@ -32,7 +29,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
-      <body className={`bg-white text-gray-900 ${notoJP.className}`}>
+      <body className={`bg-white text-gray-900`}>
         <CartProvider>
           <div className="print:hidden">
             <NavbarWrapper />
@@ -40,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           <MainWrapper>
             {/* ✅ Wrap children in Suspense */}
-            <Suspense fallback={<div>Loading...</div>}>
+            <Suspense fallback={<div className="text-center py-20">Loading...</div>}>
               {children}
             </Suspense>
           </MainWrapper>

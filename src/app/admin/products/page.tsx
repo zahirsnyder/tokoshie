@@ -38,10 +38,62 @@ export default function ProductList() {
 
     const deleteProduct = async () => {
         if (!deleteId) return;
-        const { error } = await supabase.from("products").delete().eq("id", deleteId);
-        if (error) alert("Delete failed");
+
+        // Step 1: Get the product and its image URL
+        const { data: product, error: fetchError } = await supabase
+            .from("products")
+            .select("image_url")
+            .eq("id", deleteId)
+            .maybeSingle(); // ✅ Safe fallback
+
+        if (fetchError) {
+            console.error("Failed to fetch product before deletion:", fetchError.message);
+            alert("Failed to fetch product.");
+            return;
+        }
+
+        // Step 2: Delete the image via secure API route
+        if (product?.image_url) {
+            try {
+                const url = new URL(product.image_url);
+                const pathParts = url.pathname.split("/");
+                const bucketIndex = pathParts.findIndex(part => part === "product-images");
+                const filePath = pathParts.slice(bucketIndex + 1).join("/");
+
+                console.log("🧩 File path resolved for server:", filePath);
+
+                if (filePath) {
+                    const res = await fetch("/api/delete-image", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ filePath }),
+                    });
+
+                    const result = await res.json();
+
+                    if (!res.ok) {
+                        console.error("❌ Failed to delete via server:", result.error);
+                    } else {
+                        console.log("✅ Image deleted via server route:", filePath);
+                    }
+                }
+            } catch (err) {
+                console.error("❌ Error parsing image URL:", err);
+            }
+        }
+
+        // Step 3: Delete the product row
+        const { error: deleteError } = await supabase
+            .from("products")
+            .delete()
+            .eq("id", deleteId);
+
+        if (deleteError) {
+            alert("Delete failed");
+        }
+
         setDeleteId(null);
-        fetchProducts();
+        fetchProducts(); // Refresh list
     };
 
     return (
